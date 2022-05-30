@@ -32,8 +32,8 @@ latent_dim  = 128       # Latent dimensionality of the encoding space.
 num_samples = 10000     # Number of samples to test on.
 
 # Path to the data txt file on disk.
-data_path   = '../data/all.tsv'     # for char table
-test_path   = '../data/test.tsv'    # for evaluation
+data_path   = '../data/all-smi2smi.tsv'     # for char table
+test_path   = '../data/test-smi2smi.tsv'    # for evaluation
 
 '''
 Recreate the char table used for training
@@ -144,8 +144,10 @@ def my_load_model(model_filename, model_weights_filename):
     return model
 
 # load models
-decoder_model = my_load_model('../dnns/old/decoder_lstm.json', '../dnns/old/decoder_lstm_weights.h5')
-encoder_model = my_load_model('../dnns/old/encoder_lstm.json', '../dnns/old/encoder_lstm_weights.h5')
+decoder_model = my_load_model('../dnns/decoder_lstm-100-128.json', 
+                              '../dnns/decoder_lstm_weights-100-128.h5')
+encoder_model = my_load_model('../dnns/encoder_lstm-100-128.json', 
+                              '../dnns/encoder_lstm_weights-100-128.h5')
 
 # visualize models
 print("ENCODER:")
@@ -430,21 +432,21 @@ def evaluate(N, K, method="corpus-variants"):
     print('target:      %s' %targets[0:min(10,N)])
     print()
       
-evaluate(100,1)
-evaluate(100,2)
-evaluate(100,3)
-evaluate(100,4)
-evaluate(100,5)
-evaluate(100,6)
-evaluate(100,7)
-evaluate(100,8)
-evaluate(100,9)
-evaluate(100,10)        
-evaluate(100,11)
-evaluate(100,12)
-evaluate(100,13)
-evaluate(100,14)
-evaluate(100,15)
+evaluate(10,1)
+evaluate(10,2)
+evaluate(10,3)
+evaluate(10,4)
+evaluate(10,5)
+evaluate(10,6)
+evaluate(10,7)
+evaluate(10,8)
+evaluate(10,9)
+evaluate(10,10)        
+evaluate(10,11)
+evaluate(10,12)
+evaluate(10,13)
+evaluate(10,14)
+evaluate(10,15)
 
 # evaluate(20,1,method="corpus")
 # evaluate(20,2,method="corpus")

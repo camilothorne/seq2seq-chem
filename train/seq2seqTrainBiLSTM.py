@@ -21,10 +21,15 @@ import numpy as np
 import tensorflow as tf, os, codecs
 import keras as ks
 
-from keras.callbacks import TensorBoard
 # tensorboard
-tensorboard = TensorBoard(log_dir='../logs/bilstm', histogram_freq=10,
-                          write_graph=True, write_images=True, write_grads=True)
+from keras.callbacks import TensorBoard
+tensorboard = TensorBoard(log_dir='../logs/bilstm', histogram_freq=0,
+                          write_graph=True, write_images=True)
+# checkpoints
+from keras.callbacks import ModelCheckpoint
+checkpoint = ModelCheckpoint('../dnns/best_ckp_encoder_decoder-bilstm.h5', 
+                             save_weights_only=True, monitor='val_acc', 
+                             save_best_only=True)
 
 import matplotlib
 matplotlib.use('Agg')
@@ -39,9 +44,9 @@ Hyperparameters
 '''
 
 batch_size  = 64        # Batch size for training.
-epochs      = 100       # Number of epochs to train for.
+epochs      = 10       # Number of epochs to train for.
 latent_dim  = 128       # Latent dimensionality of the encoding space.
-num_samples = 10000     # Max number of samples to train on.
+num_samples = 1000     # Max number of samples to train on.
 
 '''
 Encode data into one-hot character vectors
@@ -188,7 +193,7 @@ decoder_outputs           = decoder_dense(decoder_outputs)
 '''
 Define and train the encoder-decoder model that will turn
 `encoder_input_data` & `decoder_input_data` into `decoder_target_data`.
-We will extract from it the models for testing/prediction
+We will extract from it the models for testing/prediction.
 '''
 
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
@@ -198,8 +203,20 @@ model.fit([encoder_input_data, decoder_input_data], decoder_target_data,
           batch_size=batch_size,
           epochs=epochs,
           validation_split=0.2,
-          callbacks=[tensorboard])
+          callbacks=[tensorboard, checkpoint])
+print()
 print("==> finished training model\n")
+
+'''
+Save results.
+'''
+
+def myprint(s, filename):
+    '''
+    save model summary to file
+    '''
+    with open('../plots/'+filename+'.txt','a') as fi:
+        print(s, file=fi)
 
 # plot training & validation accuracy curves
 plt.plot(model.history.history['acc'])
@@ -222,8 +239,7 @@ plt.savefig('../plots/bilstm-100-128-training-acc.png', bbox_inches='tight')
 plt.close()
 
 # print model
-model.summary()
-
+model.summary(print_fn=lambda x: myprint(x, "encoder_decoder-bilstm-100-128"))
 # plot model
 ks.utils.plot_model(model, to_file='../plots/encoder-decoder-bilstm-100-128.png', show_shapes=True)
 print("==> saved training stats\n")
@@ -249,7 +265,7 @@ encoder_model.save_weights('../dnns/encoder_bilstm_weights-100-128.h5')
 encoder_model.save("../dnns/enc-bilstm-100-128.h5")
 
 # print model
-encoder_model.summary()
+model.summary(print_fn=lambda x: myprint(x, "encoder-bilstm-100-128"))
 
 # plot model
 ks.utils.plot_model(encoder_model, to_file='../plots/encoder-bilstm-100-128.png', show_shapes=True)
@@ -270,8 +286,7 @@ decoder_model.save_weights('../dnns/decoder_bilstm_weights-100-128.h5')
 decoder_model.save("../dnns/dec-bilstm-100-128.h5")
 
 # print model
-decoder_model.summary()
-
+model.summary(print_fn=lambda x: myprint(x, "decoder-bilstm-100-128"))
 # plot model
 ks.utils.plot_model(decoder_model, to_file='../plots/decoder-bilstm-100-128.png', show_shapes=True)
 print("==> saved decoder model to disk")

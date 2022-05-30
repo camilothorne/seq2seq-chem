@@ -21,10 +21,15 @@ import numpy as np
 import tensorflow as tf, os, codecs
 import keras as ks
 
-from keras.callbacks import TensorBoard
 # tensorboard
-tensorboard = TensorBoard(log_dir='../logs/lstm', histogram_freq=10,
-                          write_graph=True, write_images=True, write_grads=True)
+from keras.callbacks import TensorBoard
+tensorboard = TensorBoard(log_dir='../logs/lstm', histogram_freq=0,
+                          write_graph=True, write_images=True)
+# checkpoints
+from keras.callbacks import ModelCheckpoint
+checkpoint = ModelCheckpoint('../dnns/best_ckp_encoder_decoder-lstm.h5', 
+                             save_weights_only=True, monitor='val_acc', 
+                             save_best_only=True)
 
 import matplotlib
 matplotlib.use('Agg')
@@ -35,9 +40,9 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 batch_size  = 64        # Batch size for training.
-epochs      = 100       # Number of epochs to train for.
+epochs      = 10       # Number of epochs to train for.
 latent_dim  = 128       # Latent dimensionality of the encoding space.
-num_samples = 10000     # Max number of samples to train on.
+num_samples = 1000     # Max number of samples to train on.
 
 # Path to the data file on disk.
 train_path          = '../data/train-smi2smi.tsv'
@@ -151,7 +156,8 @@ model.fit([encoder_input_data, decoder_input_data], decoder_target_data,
           batch_size=batch_size,
           epochs=epochs,
           validation_split=0.2,
-          callbacks=[tensorboard])
+          callbacks=[tensorboard, checkpoint])
+print()
 print("==> finished training model\n")
 
 '''
@@ -162,7 +168,7 @@ def myprint(s, filename):
     '''
     save model summary to file
     '''
-    with open('../dnns/'+filename+'.txt','a') as fi:
+    with open('../plots/'+filename+'.txt','a') as fi:
         print(s, file=fi)
 
 # plot training & validation accuracy curves
