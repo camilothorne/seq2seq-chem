@@ -74,9 +74,9 @@ class OneHotEncode(object):
         self.max_encoder_seq_length = max([len(txt) for txt in self.input_texts])
         self.max_decoder_seq_length = max([len(txt) for txt in self.target_texts])
         self.input_token_index  = dict(
-            [(char, i) for i, char in enumerate(self.input_characters)])
+            [(char, j) for j, char in enumerate(self.input_characters)])
         self.target_token_index = dict(
-            [(char, i) for i, char in enumerate(self.target_characters)])
+            [(char, j) for j, char in enumerate(self.target_characters)])
         
 
     def corpus_stats(self):
@@ -145,25 +145,24 @@ class OneHotEncode(object):
                     self.decoder_target_data[i, t - 1, self.target_token_index[char]] = 1.
 
                     
-if __name__ == "__main__":
-     
-    # Path to the data file on disk.
-    xdata_path           = '../data/all-smi2smi.tsv'
-    xnum_samples = 1000     # Max number of samples to train on.
- 
-    print('----------------')
- 
-    char_table1 = OneHotEncode()
-    char_table1.build_char_table(xdata_path, ['smiles','smiles-out'])
-    char_table1.corpus_stats()
-     
-    print('----------------')      
-     
-    (x,y,z,w) = char_table1.select_sample(0, xnum_samples*3, print_stats=True)
-    print('source','\t','target')
-    for i in range(0, min(w.shape[0],10)):
-        print(w[i,0],'\t',w[i,1])
-     
+# if __name__ == "__main__":
+#      
+#     xdata_path   = '../data/all-smi2smi.tsv'     # Path to the data file on disk.
+#     xnum_samples = 1000                          # Max number of samples to train on.
+#  
+#     print('----------------')
+#  
+#     char_table1 = OneHotEncode()
+#     char_table1.build_char_table(xdata_path, ['smiles','smiles-out'])
+#     char_table1.corpus_stats()
+#      
+#     print('----------------')      
+#      
+#     (x,y,z,w) = char_table1.select_sample(0, xnum_samples*3, print_stats=True)
+#     print('source','\t','target')
+#     for p in range(0, min(w.shape[0],10)):
+#         print(w[p,0],'\t',w[p,1])
+#      
 #     print('----------------')      
 #    
 #     char_table1.select_sample(xnum_samples, xnum_samples*2, print_stats=True)
