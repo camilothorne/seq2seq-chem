@@ -11,8 +11,12 @@ latent_dim is unchanged, and the input data and model architecture are unchanged
 
 It relies on "beam" search.
 '''
+
 from __future__ import print_function
-from functools import total_ordering
+#from functools import total_ordering
+
+from utils.onehotencode import OneHotEncode
+from utils.beamsearch import State, BeamSearch
 
 import warnings
 warnings.filterwarnings('ignore')  # ignore all warnings
@@ -28,79 +32,43 @@ from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction, sentence_b
 tf.logging.set_verbosity(tf.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-latent_dim  = 128       # Latent dimensionality of the encoding space.
+latent_dim  = 128      # Latent dimensionality of the encoding space.
 num_samples = 1000     # Number of samples to test on.
 
-# Path to the data txt file on disk.
-data_path   = '../data/all-smi2smi.tsv'     # for char table
-test_path   = '../data/test-smi2smi.tsv'    # for evaluation
+'''
+Create character table(s)
+'''
+
+data_path   = '../data/all-smi2smi.tsv'     # Path to the data txt file on disk.
+data_encoding = OneHotEncode()
+data_encoding.build_char_table(data_path, xrows=['smiles', 'smiles-out'])
+data_encoding.corpus_stats()
+
+input_characters          = data_encoding.input_characters
+target_characters         = data_encoding.target_characters
+input_token_index         = data_encoding.input_token_index
+target_token_index        = data_encoding.target_token_index 
+num_encoder_tokens        = data_encoding.num_encoder_tokens
+num_decoder_tokens        = data_encoding.num_decoder_tokens
+max_encoder_seq_length    = data_encoding.max_encoder_seq_length
+max_decoder_seq_length    = data_encoding.max_decoder_seq_length
+
+(encoder_input_data, decoder_input_data, decoder_target_data, corpus) = data_encoding.select_sample(num_samples, 2*num_samples)
 
 '''
-Recreate the char table used for training
-NOTE: the data must be identical, in order for the character -> integer
-mappings to be consistent.
-We omit encoding target_texts since they are not needed.
+build test corpus
 '''
-input_texts         = []
-target_texts        = []
-input_characters    = set()
-target_characters   = set()
 
-with open(data_path, 'r', encoding='utf-8') as f:
-    '''
-    open full corpus
-    '''
-    lines = f.read().split('\n')    
-        
-for line in lines[: min(num_samples, len(lines) - 1)]:
-    '''
-    parse full corpus, build char table
-    '''
-    input_text, target_text = line.split('\t')
-    '''
-    We use "tab" as the "start sequence" character
-    for the targets, and "\n" as "end sequence" character.
-    '''
-    target_text = '\t' + target_text + '\n'
-    input_texts.append(input_text)
-    target_texts.append(target_text)
-    for char in input_text:
-        if char not in input_characters:
-            input_characters.add(char)
-    for char in target_text:
-        if char not in target_characters:
-            target_characters.add(char)
-
-# Load test set
 test_input          = []
-test_target         = []  
-         
-with open(test_path, 'r', encoding='utf-8') as f:
-    '''
-    open test corpus
-    '''
-    lines_t = f.read().split('\n')
-   
-for line in lines_t[: min(num_samples, len(lines) - 1)]:
-    '''
-    parse test corpus
-    '''
-    input_text, target_text = line.split('\t') 
-    test_input.append(input_text)
-    test_target.append(target_text)               
-
-input_characters        = sorted(list(input_characters))
-target_characters       = sorted(list(target_characters))
-
-num_encoder_tokens      = len(input_characters)
-num_decoder_tokens      = len(target_characters)
-
-max_encoder_seq_length  = max([len(txt) for txt in input_texts])
-max_decoder_seq_length  = max([len(txt) for txt in target_texts])
+test_target         = []
+for i in range(0, corpus.shape[0]):
+    test_input.append(corpus[i,0])
+    test_target.append(corpus[i,1])  
 
 '''
 Create alternatives for BLEU-4
 '''
+
 test_dict = {}    
 for i in range(0,len(test_input)):
     '''
@@ -111,29 +79,11 @@ for i in range(0,len(test_input)):
     else:
         test_dict[test_input[i]] = [test_target[i]] 
 
-print()
-print('Number of samples:',                     len(test_input))
-print('Number of unique input chars/tokens:',   num_encoder_tokens)
-print('Number of unique output chars/tokens:',  num_decoder_tokens)
-print('Max sequence length for inputs:',        max_encoder_seq_length)
-print('Max sequence length for outputs:',       max_decoder_seq_length)
-print()  
+'''
+Restore the model and construct the encoder and decoder.
+'''
 
-input_token_index  = dict(
-    [(char, i) for i, char in enumerate(input_characters)])
-
-target_token_index = dict(
-    [(char, i) for i, char in enumerate(target_characters)])
-
-encoder_input_data = np.zeros(
-    (len(test_input), max_encoder_seq_length, num_encoder_tokens),
-    dtype='float32')
-
-for i, input_text in enumerate(test_input):
-    for t, char in enumerate(input_text):
-        encoder_input_data[i, t, input_token_index[char]] = 1.
-
-# restore the model and construct the encoder and decoder.
+# restore the models
 def my_load_model(model_filename, model_weights_filename):
     '''
     restore models from serializations
@@ -165,133 +115,13 @@ reverse_input_char_index = dict(
 reverse_target_char_index = dict(
     (i, char) for char, i in target_token_index.items())
 
-class BeamSearch:
-    '''
-    Class encapsulating beam search algorithm
-    '''
-    
-    def __init__(self, input_seq=None, queue=None, beam_size=0, epochs=None):
-        '''
-        generate and search state space
-        '''
-        self.input_seq = input_seq  # start search with input sequence
-        self.queue = queue          # start search with empty queue (will be a priority queue of sorts!)
-        self.beam_size = beam_size  # start search with fixed beam size
-        self.epochs = epochs        # max depth of search
-    
-    def sort_queue(self):
-        '''
-        sort queue from cheapest to most costly state
-        '''
-        self.queue = sorted(self.queue)
-    
-    def prune_queue(self):
-        '''
-        prune queue and keep the top K most costly states
-        '''
-        self.queue = self.queue[-self.beam_size:]
-    
-    def traverse(self):
-        '''
-        traverse beam
-        '''
-        # stop when True
-        stop_condition = False
-        # count iteration / search depth
-        cnt_iter = 0
-        while not stop_condition:
-            '''
-            LIFO traversal:
-            
-            - pick and remove the last K states in beam
-            - a beam is a queue that has never more than K
-              (unvisited) elements
-            ''' 
-            beam_states = []
-            for _ in range(0, len(self.queue)):
-                curr_state = self.queue[-1]             
-                curr_state.get_successors()
-                beam_states = beam_states + curr_state.states
-                self.queue.remove(curr_state)
-            for state in beam_states:
-                self.queue.append(state)                    # add all successors
-            self.sort_queue()                               # sort
-            self.prune_queue()                              # prune            
-            sample_toks = [s.token for s in self.queue]
-            cnt_iter = cnt_iter + 1
-            '''
-            stop when stop character is predicted, or when
-            max sequence length is reached
-            '''
-            if (
-                ('\n' in " ".join(sample_toks)) or 
-                (cnt_iter > self.epochs)
-                ):
-                stop_condition = True
-
-@total_ordering
-class State:
-    '''
-    Class encapsulating a decoding state, ordered by cost
-    '''
-    
-    def __init__(self, token=None, hidden=None, cost=None, mod=None, targ_seq=None, pred=None):
-        '''
-        create state
-        '''
-        self.token = token              # current input token at time t of state
-        self.hidden = hidden            # current hidden state(s) at time t
-        self.cost = cost                # cost of path leading to state (from time t==0 to time t)
-        self.mod = mod                  # seq2seq model
-        self.targ_seq = targ_seq        # current decoded sequence leading to state (from time t==0 until time t)
-        self.pred = pred                # current prediction at time t of state
-        self.states = None              # successor states
-        
-    def __repr__(self):
-        # display x and y instead of address
-        return f'State(input_dims={self.targ_seq.shape}, cost={self.cost})'
-        
-    @property
-    def rank(self):
-        return self.cost        
-        
-    def __eq__(self, other):
-        '''
-        states are identical if costs are identical, and tokens are identical
-        '''
-        return self.rank == other.rank
-
-    def __lt__(self, other):
-        '''
-        states are smaller if path cost is smaller
-        '''
-        return self.rank < other.rank
-        
-    def get_successors(self):
-        '''
-        expand state to all neighbors
-        '''
-        states              = []
-        output_tokens, h, c = self.mod.predict([self.targ_seq] + self.hidden)
-        samp_tok_indx       = np.argsort(output_tokens)[0, -1, :][:]
-        samp_chars          = [reverse_target_char_index[token_ind] for token_ind in samp_tok_indx]
-        samp_tok_prob       = sorted(output_tokens[0, -1, :])[:]
-        for j in range(0,len(samp_chars)):
-            tok_ind     = samp_tok_indx[j]
-            token       = samp_chars[j]
-            cost        = samp_tok_prob[j]
-            target_seq  = np.zeros((1, 1, num_decoder_tokens))
-            target_seq[0, 0, tok_ind] = 1.
-            state = State(token=self.token + token, hidden=[h,c], 
-                          cost=(self.cost + np.log(cost)), 
-                          mod=self.mod, 
-                          targ_seq=target_seq, 
-                          pred=self)
-            states.append(state)
-        self.states = states
+'''
+Beam-search decoding, where 
+a beam size K=1 reverts to best-first decoding.
+'''
 
 # Decodes an input sequence using "beam search".
-def decode_sequence_beam(xinput_seq, max_len, k, num):
+def decode_sequence_beam(xinput_seq, max_len, k):
     '''
     decodes seq2seq prediction using beam search
     ''' 
@@ -320,7 +150,9 @@ def decode_sequence_beam(xinput_seq, max_len, k, num):
                      cost=0 + np.log(cost), 
                      mod=decoder_model, 
                      targ_seq=target_seq, 
-                     pred=output_tokens)
+                     pred=output_tokens,
+                     reverse_target_char_index=reverse_target_char_index,
+                     num_decoder_tokens=num_decoder_tokens)
         s_queue.append(root)
     # do beam search
     beam = BeamSearch(input_seq=xinput_seq, 
@@ -333,6 +165,11 @@ def decode_sequence_beam(xinput_seq, max_len, k, num):
         res[state.token]=state.cost
     # return result
     return res
+
+'''
+We evaluate predictions on N samples on a beam of size K
+using BLEU-4 in different variations
+'''
        
 def evaluate(N, K, method="corpus-variants"):
     '''
@@ -351,7 +188,7 @@ def evaluate(N, K, method="corpus-variants"):
         for seqs_index in range(N):
             # populate predictions vs. targets for BLEU
             xinput_seq          = encoder_input_data[seqs_index: seqs_index + 1]
-            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K, seqs_index)
+            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K)
             best_decoding       = max(decoded_sentences).replace('\n','')
             #print(input_texts[seqs_index], '\t', decoded_sentences)
             pred_sent   = list(best_decoding)
@@ -370,9 +207,8 @@ def evaluate(N, K, method="corpus-variants"):
         for seqs_index in range(N):
             # populate predictions vs. targets for BLEU
             xinput_seq          = encoder_input_data[seqs_index: seqs_index + 1]
-            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K, seqs_index)
+            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K)
             best_decoding       = max(decoded_sentences).replace('\n','')
-            #print(input_texts[seqs_index], '\t', decoded_sentences)
             pred_sent   = list(best_decoding)
             inp_sent    = test_input[seqs_index]
             ref_sents   = [list(s) for s in test_dict[inp_sent]]
@@ -389,9 +225,8 @@ def evaluate(N, K, method="corpus-variants"):
         for seqs_index in range(N): 
             # populate predictions vs. targets for BLEU
             xinput_seq          = encoder_input_data[seqs_index: seqs_index + 1]
-            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K, seqs_index)
+            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K)
             best_decoding       = max(decoded_sentences).replace('\n','')
-            #print(input_texts[seqs_index], '\t', decoded_sentences)
             pred_sent   = list(best_decoding)
             inp_sent    = test_input[seqs_index]
             tar_sent    = test_target[seqs_index]
@@ -410,9 +245,8 @@ def evaluate(N, K, method="corpus-variants"):
         for seqs_index in range(N):
             # populate predictions vs. targets for BLEU
             xinput_seq          = encoder_input_data[seqs_index: seqs_index + 1]
-            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K, seqs_index)
+            decoded_sentences   = decode_sequence_beam(xinput_seq, max_decoder_seq_length, K)
             best_decoding       = max(decoded_sentences).replace('\n','')
-            #print(input_texts[seqs_index], '\t', decoded_sentences)
             pred_sent   = list(best_decoding)
             inp_sent    = test_input[seqs_index]
             ref_sents   = [list(s) for s in test_dict[inp_sent]]
@@ -431,6 +265,10 @@ def evaluate(N, K, method="corpus-variants"):
     print('predicted:   %s' %preds[0:min(10,N)])
     print('target:      %s' %targets[0:min(10,N)])
     print()
+
+'''
+Evaluation
+'''
       
 evaluate(10,1)
 evaluate(10,2)
