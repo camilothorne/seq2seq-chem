@@ -97,10 +97,10 @@ def my_load_model(model_filename, model_weights_filename):
     return model
 
 # load models
-decoder_model = my_load_model('../dnns/decoder_lstm-100-128.json', 
-                              '../dnns/decoder_lstm_weights-100-128.h5')
-encoder_model = my_load_model('../dnns/encoder_lstm-100-128.json', 
-                              '../dnns/encoder_lstm_weights-100-128.h5')
+decoder_model = my_load_model('../dnns/decoder_bilstm-100-128.json', 
+                              '../dnns/decoder_bilstm_weights-100-128.h5')
+encoder_model = my_load_model('../dnns/encoder_bilstm-100-128.json', 
+                              '../dnns/encoder_bilstm_weights-100-128.h5')
 
 # visualize models
 print("\nENCODER:")

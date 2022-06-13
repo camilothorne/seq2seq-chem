@@ -40,7 +40,12 @@ class OneHotEncode(object):
 
     def build_char_table(self, data_path, xrows):
         '''
-        Read (full) dataset
+        Read (full) dataset, and:
+        
+        - create char table of M characters for inputs (resp. target) 
+        - for each input (resp. target) of length N, create a N x M table
+        - create a K x N x M table for the K inputs (resp. targets)
+        - results are saved in class-internal variables
         '''
         self.corpus = pd.read_csv(data_path, sep="\t", encoding='utf-8')
         for _, row in self.corpus.iterrows():
@@ -66,6 +71,12 @@ class OneHotEncode(object):
     def _set_input_chars(self):
         '''
         Set internal variables (private method)
+    
+        - lists of input and target chars
+        - max number of chars in inputs and targets
+        - max length of inputs anf targets
+        - input token indexes (char dictionary of positions to chars)
+        - target token indexes (char dictionary of positions to chars)
         '''
         self.input_characters = sorted(list(self.input_characters))
         self.target_characters = sorted(list(self.target_characters))
@@ -73,50 +84,19 @@ class OneHotEncode(object):
         self.num_decoder_tokens = len(self.target_characters)
         self.max_encoder_seq_length = max([len(txt) for txt in self.input_texts])
         self.max_decoder_seq_length = max([len(txt) for txt in self.target_texts])
+        # We need dictionaries to decode predictions. The `argmax(...)` function
+        # applied to a softmax layer returns the position in the output M-dimensional probability 
+        # distribution vector with the highest softmax value.
+        # This position is mapped back to a character with the help of these two dictionaries.
         self.input_token_index  = dict(
             [(char, j) for j, char in enumerate(self.input_characters)])
         self.target_token_index = dict(
             [(char, j) for j, char in enumerate(self.target_characters)])
         
-
-    def corpus_stats(self):
-        '''
-        Display dataset stats
-        '''
-        print('Total number of examples:            ', len(self.input_texts))
-        print('Number of unique input tokens/chars: ', self.num_encoder_tokens)
-        print('Number of unique output tokens/chars:', self.num_decoder_tokens)
-        print('Max sequence length for inputs:      ', self.max_encoder_seq_length)
-        print('Max sequence length for outputs:     ', self.max_decoder_seq_length)
-        print('Shape of encoder inputs (all):       ', self.encoder_input_data.shape)
-        print('Shape of decoder inputs (all):       ', self.decoder_input_data.shape)
-        print('Shape of decoder targets (all):      ', self.decoder_target_data.shape)
-        
-        
-    def select_sample(self, begin, end, print_stats=False):
-        '''
-        Restrict dataset to subset of points
-        '''
-        input_enc  = self.encoder_input_data[begin:end,:,:]
-        input_dec  = self.decoder_input_data[begin:end,:,:]
-        target_dec = self.decoder_target_data[begin:end,:,:]
-        corpus     = self.corpus.iloc[begin:end].values
-        if print_stats:
-            print('Sample size:                   ', end-begin)  
-            print('Begin:                         ', begin)  
-            print('End:                           ', end)        
-            print('Shape of encoder inputs (res): ', input_enc.shape)
-            print('Shape of decoder inputs (res): ', input_dec.shape)
-            print('Shape of decoder targets (res):', target_dec.shape)
-            print('Corpus (res):                  ', corpus.shape)
-        else:
-            pass
-        return (input_enc, input_dec, target_dec, corpus)
-        
         
     def _build_embeddings(self):
         '''
-        Read train/test data and create embeddings
+        Create one-hot char embeddings (private method)
         '''
         # we work with one-hot char/token vectors
         self.encoder_input_data  = np.zeros((len(self.input_texts), 
@@ -143,6 +123,44 @@ class OneHotEncode(object):
                     # and will not include the start character.
                     '''
                     self.decoder_target_data[i, t - 1, self.target_token_index[char]] = 1.
+        
+
+    def corpus_stats(self):
+        '''
+        Display dataset stats
+        '''
+        print()
+        print('Total number of examples:            ', len(self.input_texts))
+        print('Number of unique input tokens/chars: ', self.num_encoder_tokens)
+        print('Number of unique output tokens/chars:', self.num_decoder_tokens)
+        print('Max sequence length for inputs:      ', self.max_encoder_seq_length)
+        print('Max sequence length for outputs:     ', self.max_decoder_seq_length)
+        print('Shape of encoder inputs (all):       ', self.encoder_input_data.shape)
+        print('Shape of decoder inputs (all):       ', self.decoder_input_data.shape)
+        print('Shape of decoder targets (all):      ', self.decoder_target_data.shape)
+        
+        
+    def select_sample(self, begin, end, print_stats=False):
+        '''
+        Restrict dataset to subset of points
+        '''
+        input_enc  = self.encoder_input_data[begin:end,:,:]
+        input_dec  = self.decoder_input_data[begin:end,:,:]
+        target_dec = self.decoder_target_data[begin:end,:,:]
+        corpus     = self.corpus.iloc[begin:end].values
+        if print_stats:
+            print()
+            print('Sample size:                   ', end-begin)  
+            print('Begin:                         ', begin)  
+            print('End:                           ', end)        
+            print('Shape of encoder inputs (res): ', input_enc.shape)
+            print('Shape of decoder inputs (res): ', input_dec.shape)
+            print('Shape of decoder targets (res):', target_dec.shape)
+            print('Corpus (res):                  ', corpus.shape)
+            print('Corpus (res):\n%s' %corpus[:min(corpus.shape[0],5),:])
+        else:
+            pass
+        return (input_enc, input_dec, target_dec, corpus)
 
                     
 # if __name__ == "__main__":

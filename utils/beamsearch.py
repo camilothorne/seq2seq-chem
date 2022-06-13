@@ -68,6 +68,10 @@ class State:
         states              = []
         output_tokens, h, c = self.mod.predict([self.targ_seq] + self.hidden)
         samp_tok_indx       = np.argsort(output_tokens)[0, -1, :][:]
+        
+        #print(samp_tok_indx)
+        #print(self.reverse_target_char_index)
+        
         samp_chars          = [self.reverse_target_char_index[token_ind] for token_ind in samp_tok_indx]
         samp_tok_prob       = sorted(output_tokens[0, -1, :])[:]
         for j in range(0,len(samp_chars)):
@@ -80,7 +84,10 @@ class State:
                           cost=(self.cost + np.log(cost)), 
                           mod=self.mod, 
                           targ_seq=target_seq, 
-                          pred=self)
+                          pred=output_tokens,
+                          reverse_target_char_index=self.reverse_target_char_index,
+                          num_decoder_tokens = self.num_decoder_tokens
+                          )
             states.append(state)
         self.states = states
        

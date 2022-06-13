@@ -1,6 +1,6 @@
 '''
-Created on 10 May 2022
-@author: camilo thorne
+Created on 10 June 2022
+@author: Camilo Thorne
 
 Create a character table for one-hot character encoding of training and test
 sets from a large corpus. This corpus should be large enough to cover *all* the characters C
