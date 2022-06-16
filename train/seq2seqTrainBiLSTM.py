@@ -49,7 +49,6 @@ epochs      = 10       # Number of epochs to train for.
 latent_dim  = 128       # Latent dimensionality of the encoding space.
 num_samples = 1000     # Max number of samples to train on.
 
-
 '''
 Create character table(s)
 '''
@@ -63,119 +62,6 @@ data_encoding.corpus_stats()
 num_encoder_tokens                                               = data_encoding.num_encoder_tokens
 num_decoder_tokens                                               = data_encoding.num_decoder_tokens
 (encoder_input_data, decoder_input_data, decoder_target_data, _) = data_encoding.select_sample(0, num_samples)
-
-
-# '''
-# Encode data into one-hot character vectors
-# '''
-# 
-# # Path to the data file on disk.
-# train_path          = '../data/train-smi2smi.tsv'
-# data_path           = '../data/all-smi2smi.tsv'     # for char table
-# 
-# '''
-# Create character table(s)
-# '''
-# 
-# # Vectorize the data.
-# input_texts         = []
-# target_texts        = []
-# input_characters    = set()
-# target_characters   = set()
-# 
-# with codecs.open(data_path, 'r', encoding='utf-8') as f:
-#     lines = f.read().split('\n')
-#     
-# for line in lines[: min(num_samples, len(lines) - 1)]:
-#     input_text, target_text = line.split('\t')
-#     '''
-#     We use "tab" as the "start sequence" character
-#     for the targets, and "\n" as "end sequence" character.
-#     '''
-#     target_text = '\t' + target_text + '\n'
-#     input_texts.append(input_text)
-#     target_texts.append(target_text)
-#     
-#     for char in input_text:
-#         if char not in input_characters:
-#             input_characters.add(char)
-#     
-#     for char in target_text:
-#         if char not in target_characters:
-#             target_characters.add(char)
-# 
-# input_characters = sorted(list(input_characters))
-# target_characters = sorted(list(target_characters))
-# 
-# num_encoder_tokens = len(input_characters)
-# num_decoder_tokens = len(target_characters)
-# 
-# max_encoder_seq_length = max([len(txt) for txt in input_texts])
-# max_decoder_seq_length = max([len(txt) for txt in target_texts])
-# 
-# print()
-# print('Number of unique input tokens/chars: ', num_encoder_tokens)
-# print('Number of unique output tokens/chars:', num_decoder_tokens)
-# print('Max sequence length for inputs:      ', max_encoder_seq_length)
-# print('Max sequence length for outputs:     ', max_decoder_seq_length)
-# print()
-# 
-# input_token_index  = dict(
-#     [(char, i) for i, char in enumerate(input_characters)])
-# 
-# target_token_index = dict(
-#     [(char, i) for i, char in enumerate(target_characters)])
-# 
-# '''
-# Load train set.
-# We encode sources and targets using the character table defined
-# above.
-# '''
-# 
-# train_input          = []
-# train_target         = []  
-# 
-# # open file
-# with codecs.open(train_path, 'r', encoding='utf-8') as f:
-#     lines_t = f.read().split('\n')
-# 
-# # load (source, target) pairs
-# for line in lines_t[: min(num_samples, len(lines_t) - 1)]:
-#     tinput_text, ttarget_text = line.split('\t')
-#     '''
-#     We use "tab" as the "start sequence" character
-#     for the targets, and "\n" as "end sequence" character.
-#     '''
-#     ttarget_text = '\t' + ttarget_text + '\n' 
-#     train_input.append(tinput_text)
-#     train_target.append(ttarget_text)   
-# 
-# print('Number of training samples: %s\n' %len(train_input)) 
-# 
-# '''
-# We work with one-hot char/token vectors. Note that input data dimensions 
-# depend on the maximum possible theoretical inputs lengths in both the 
-# target and the source data and on the maximum possible number of distinct characters (256). 
-# '''
-# 
-# encoder_input_data  = np.zeros((len(train_input), max_encoder_seq_length, num_encoder_tokens), dtype='float32')
-# decoder_input_data  = np.zeros((len(train_input), max_decoder_seq_length, num_decoder_tokens), dtype='float32')
-# decoder_target_data = np.zeros((len(train_input), max_decoder_seq_length, num_decoder_tokens), dtype='float32')
-# 
-# # We populate one-hot vectors.
-# for i, (tinput_text, ttarget_text) in enumerate(zip(train_input, train_target)):
-#     # loop on source
-#     for t, char in enumerate(tinput_text):
-#         #print(i, t, input_token_index[char], len(tinput_text))
-#         encoder_input_data[i, t, input_token_index[char]] = 1.    
-#     # loop on target
-#     for t, char in enumerate(ttarget_text):
-#         # decoder_target_data is ahead of decoder_input_data by one timestep
-#         decoder_input_data[i, t, target_token_index[char]] = 1.
-#         if t > 0:
-#             # decoder_target_data will be ahead by one timestep
-#             # and will not include the start character.
-#             decoder_target_data[i, t - 1, target_token_index[char]] = 1.
 
 '''
 Define encoder/decoder inputs
@@ -213,7 +99,6 @@ decoder_lstm              = LSTM(2*latent_dim, return_sequences=True, return_sta
 decoder_outputs, _, _     = decoder_lstm(decoder_inputs, initial_state=encoder_states)
 decoder_dense             = Dense(num_decoder_tokens, activation='softmax')
 decoder_outputs           = decoder_dense(decoder_outputs)
-
 
 '''
 Define and train the encoder-decoder model that will turn

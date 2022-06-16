@@ -13,7 +13,6 @@ It relies on "beam" search.
 '''
 
 from __future__ import print_function
-#from functools import total_ordering
 
 from utils.onehotencode import OneHotEncode
 from utils.beamsearch import State, BeamSearch
@@ -285,12 +284,7 @@ evaluate(10,6)
 evaluate(10,7)
 evaluate(10,8)
 evaluate(10,9)
-evaluate(10,10)        
-evaluate(10,11)
-evaluate(10,12)
-evaluate(10,13)
-evaluate(10,14)
-evaluate(10,15)
+evaluate(10,10)
 
 # evaluate(20,1,method="corpus")
 # evaluate(20,2,method="corpus")
