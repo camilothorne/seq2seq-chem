@@ -113,13 +113,13 @@ def myprint(s, filename):
     '''
     save model summary to file
     '''
-    with open('../plots/'+filename+'.txt','a') as fi:
-        print(s, file=fi)
+    with open('../plots/'+filename+'.txt','w') as fi:
+        fi.write(s + '\n')
 
 # plot training & validation accuracy curves
 plt.plot(model.history.history['acc'])
 plt.plot(model.history.history['val_acc'])
-plt.title('Model accuracy (biLSTM)')
+plt.title('Model accuracy (LSTM)')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Val.'], loc='upper left')
@@ -129,7 +129,7 @@ plt.close()
 # plot training & validation loss curves
 plt.plot(model.history.history['loss'])
 plt.plot(model.history.history['val_loss'])
-plt.title('Model loss (biLSTM)')
+plt.title('Model loss (LSTM)')
 plt.ylabel('Loss')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Val.'], loc='upper left')
