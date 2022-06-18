@@ -113,7 +113,7 @@ def myprint(s, filename):
     '''
     save model summary to file
     '''
-    with open('../plots/'+filename+'.txt','w') as fi:
+    with open('../plots/'+filename+'.txt','w+') as fi:
         fi.write(s + '\n')
 
 # plot training & validation accuracy curves
