@@ -109,12 +109,20 @@ print("==> finished training model\n")
 Save results
 '''
 
+def get_model_summary(model):
+    '''
+    convert summary to string
+    '''
+    string_list = []
+    model.summary(line_length=80, print_fn=lambda x: string_list.append(x))
+    return "\n".join(string_list)
+
 def myprint(s, filename):
     '''
     save model summary to file
     '''
-    with open('../plots/'+filename+'.txt','w+') as fi:
-        fi.write(s + '\n')
+    with open('../plots/'+filename+'.txt','w') as fi:
+        fi.write(s)
 
 # plot training & validation accuracy curves
 plt.plot(model.history.history['acc'])
@@ -137,7 +145,9 @@ plt.savefig('../plots/lstm-100-128-training-loss.png', bbox_inches='tight')
 plt.close()
 
 # print model
-model.summary(print_fn=lambda x: myprint(x, "encoder_decoder-lstm-100-128"))
+summ = get_model_summary(model)
+myprint(summ, "encoder_decoder-lstm-100-128")
+
 # plot model
 ks.utils.plot_model(model, to_file='../plots/encoder-decoder-lstm-100-128.png', show_shapes=True)
 
@@ -162,7 +172,9 @@ encoder_model.save_weights('../dnns/encoder_lstm_weights-100-128.h5')
 encoder_model.save("../dnns/encoder-lstm-100-128.h5")
 
 # print model
-encoder_model.summary(print_fn=lambda x: myprint(x, "encoder-lstm-100-128"))
+summ_e = get_model_summary(encoder_model)
+myprint(summ_e, "encoder-lstm-100-128")
+
 # plot model
 ks.utils.plot_model(encoder_model, to_file='../plots/encoder-lstm-100-128.png', show_shapes=True)
 print("==> saved encoder model to disk\n")
@@ -182,7 +194,9 @@ decoder_model.save_weights('../dnns/decoder_lstm_weights-100-128.h5')
 decoder_model.save("../dnns/decoder-lstm-100-128.h5")
 
 # print model
-decoder_model.summary(print_fn=lambda x: myprint(x, "decoder-lstm-100-128"))
+summ_d = get_model_summary(decoder_model)
+myprint(summ_d, "decoder-lstm-100-128")
+
 # plot model
 ks.utils.plot_model(decoder_model, to_file='../plots/decoder-lstm-100-128.png', show_shapes=True)
 print("==> saved decoder model to disk\n")

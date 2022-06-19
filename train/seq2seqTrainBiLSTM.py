@@ -157,7 +157,9 @@ plt.savefig('../plots/bilstm-100-128-training-loss.png', bbox_inches='tight')
 plt.close()
 
 # print model
-model.summary(print_fn=lambda x: myprint(x, "encoder_decoder-bilstm-100-128"))
+summ = get_model_summary(model)
+myprint(summ, "encoder_decoder-bilstm-100-128")
+
 # plot model
 ks.utils.plot_model(model, to_file='../plots/encoder-decoder-bilstm-100-128.png', show_shapes=True)
 print("==> saved training stats\n")
@@ -183,9 +185,8 @@ encoder_model.save_weights('../dnns/encoder_bilstm_weights-100-128.h5')
 encoder_model.save("../dnns/enc-bilstm-100-128.h5")
 
 # print model
-summ = get_model_summary(model)
-myprint(summ, "encoder-bilstm-100-128")
-#model.summary(print_fn=lambda x: myprint(x, "encoder-bilstm-100-128"))
+summ_e = get_model_summary(encoder_model)
+myprint(summ_e, "encoder-bilstm-100-128")
 
 # plot model
 ks.utils.plot_model(encoder_model, to_file='../plots/encoder-bilstm-100-128.png', show_shapes=True)
@@ -206,7 +207,9 @@ decoder_model.save_weights('../dnns/decoder_bilstm_weights-100-128.h5')
 decoder_model.save("../dnns/dec-bilstm-100-128.h5")
 
 # print model
-model.summary(print_fn=lambda x: myprint(x, "decoder-bilstm-100-128"))
+summ_d = get_model_summary(decoder_model)
+myprint(summ_d, "decoder-bilstm-100-128")
+
 # plot model
 ks.utils.plot_model(decoder_model, to_file='../plots/decoder-bilstm-100-128.png', show_shapes=True)
 print("==> saved decoder model to disk")
