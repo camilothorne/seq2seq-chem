@@ -10,6 +10,7 @@ data point.
 
 import numpy as np
 import pandas as pd
+import pickle as pk
 
 
 class OneHotEncode(object):
@@ -135,8 +136,8 @@ class OneHotEncode(object):
         print('Number of unique output tokens/chars:', self.num_decoder_tokens)
         print('Max sequence length for inputs:      ', self.max_encoder_seq_length)
         print('Max sequence length for outputs:     ', self.max_decoder_seq_length)
-        print('Shape of encoder inputs (all):       ', self.encoder_input_data.shape)
-        print('Shape of decoder inputs (all):       ', self.decoder_input_data.shape)
+        print('Shape of encoder inputs  (all):      ', self.encoder_input_data.shape)
+        print('Shape of decoder inputs  (all):      ', self.decoder_input_data.shape)
         print('Shape of decoder targets (all):      ', self.decoder_target_data.shape)
         
         
@@ -153,8 +154,8 @@ class OneHotEncode(object):
             print('Sample size:                   ', end-begin)  
             print('Begin:                         ', begin)  
             print('End:                           ', end)        
-            print('Shape of encoder inputs (res): ', input_enc.shape)
-            print('Shape of decoder inputs (res): ', input_dec.shape)
+            print('Shape of encoder inputs  (res):', input_enc.shape)
+            print('Shape of decoder inputs  (res):', input_dec.shape)
             print('Shape of decoder targets (res):', target_dec.shape)
             print('Corpus (res):                  ', corpus.shape)
             print('Corpus (res):\n%s' %corpus[:min(corpus.shape[0],5),:])
@@ -163,38 +164,22 @@ class OneHotEncode(object):
         return (input_enc, input_dec, target_dec, corpus)
 
                     
-# if __name__ == "__main__":
-#      
-#     xdata_path   = '../data/all-smi2smi.tsv'     # Path to the data file on disk.
-#     xnum_samples = 1000                          # Max number of samples to train on.
-#  
-#     print('----------------')
-#  
-#     char_table1 = OneHotEncode()
-#     char_table1.build_char_table(xdata_path, ['smiles','smiles-out'])
-#     char_table1.corpus_stats()
-#      
-#     print('----------------')      
-#      
-#     (x,y,z,w) = char_table1.select_sample(0, xnum_samples*3, print_stats=True)
-#     print('source','\t','target')
-#     for p in range(0, min(w.shape[0],10)):
-#         print(w[p,0],'\t',w[p,1])
-#      
-#     print('----------------')      
-#    
-#     char_table1.select_sample(xnum_samples, xnum_samples*2, print_stats=True)
-#                     
-#     print('----------------')                    
-#                     
-#     char_table2 = OneHotEncode()
-#     char_table2.build_char_table(xdata_path, ['smiles','smiles-out'])
-#     char_table2.corpus_stats()
-#     
-#     print('----------------')         
-#     
-#     char_table2.select_sample(0, xnum_samples, print_stats=True)
-#     
-#     print('----------------')      
-#     
-#     char_table2.select_sample(xnum_samples, xnum_samples+200, print_stats=True)
+    def to_pickle(self, path):
+        '''
+        Save class to Pickle:
+        
+        - Serialization must be repeated each time the class definition is changed
+        '''
+        with open(path, 'wb') as f:
+            pk.dump(self, f)
+
+
+    def from_pickle(self, path):
+        '''
+        Read class from Pickle:
+        
+        - Sets fields in empty object to the values in the serialized object
+        - Serialization must be repeated each time the class definition is changed
+        '''
+        with open(path, 'rb') as f:
+            self.__dict__.update(pk.load(f).__dict__)
