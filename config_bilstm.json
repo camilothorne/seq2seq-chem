@@ -1,0 +1,6 @@
+{
+	"epochs": 10,
+	"latent_dim": 128,
+	"batch_size": 32,
+	"data_name": "uspto-50k-sample.tsv"
+}
