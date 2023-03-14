@@ -35,7 +35,6 @@ warnings.filterwarnings('ignore')
 
 # Assign timestamp to results
 import datetime as dt
-ts = dt.datetime.now().strftime("-%m:%d:%Y::%H:%M:%S")
 
 # Plotting
 import matplotlib
@@ -71,6 +70,16 @@ epochs      = my_exp.epochs         # Number of epochs to train for
 latent_dim  = my_exp.latent_dim     # Latent dimensionality of the encoding space
 data_name   = my_exp.data_name      # Dataset name
 typ         = my_exp.typ            # Type
+expr        = typ + '-' + str(batch_size) + '-' + str(epochs) + '-' + str(latent_dim) + '-' + data_name # Path
+ts          = dt.datetime.now().strftime("-%m:%d:%Y::%H:%M:%S") # Timestamp
+
+'''
+Create plotting, logging and model directories        
+'''   
+  
+os.mkdir('../plots/' + expr + ts)
+os.mkdir('../dnns/'  + expr + ts)
+os.mkdir('../logs/'  + expr + ts)
 
 '''
 Callabacks, logs and tensorboard
@@ -78,15 +87,13 @@ Callabacks, logs and tensorboard
 
 # Tensorboard
 from keras.callbacks import TensorBoard
-tensorboard = TensorBoard(log_dir='../logs/log_' + 
-                          typ + '-' + str(batch_size) + '-' + str(latent_dim) + '-' + 
-                          data_name + ts, histogram_freq=0,
+tensorboard = TensorBoard(log_dir='../logs/' + 
+                          expr + ts, histogram_freq=0,
                           write_graph=True, write_images=True)
 # Checkpoints
 from keras.callbacks import ModelCheckpoint
-checkpoint = ModelCheckpoint('../dnns/best_ckp_encoder_decoder_' + 
-                             typ + '-' + str(batch_size) + '-' + str(latent_dim) + '-' + 
-                             data_name + ts + '.h5', 
+checkpoint = ModelCheckpoint('../dnns/' + 
+                             expr + ts + '/best_ckp_encoder_decoder.h5', 
                              save_weights_only=True, monitor='val_acc', 
                              save_best_only=True)
 
@@ -199,16 +206,15 @@ def myprint(s, filename):
     with open('../plots/' + filename + '.txt','w') as fi:
         fi.write(s)
 
-# plot training & validation accuracy curves
+# Plot training & validation accuracy curves
 plt.plot(model.history.history['acc'])
 plt.plot(model.history.history['val_acc'])
 plt.title('Model accuracy (biLSTM)')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Val.'], loc='upper left')
-plt.savefig('../plots/train_' + 
-            typ + '-' + str(batch_size) + '-' + str(latent_dim) + '-training-acc-' + 
-            data_name +ts + '.png', bbox_inches='tight')
+plt.savefig('../plots/' + 
+            expr + ts + '/acc_train.png', bbox_inches='tight')
 plt.close()
 
 # Plot training & validation loss curves
@@ -218,35 +224,27 @@ plt.title('Model loss (biLSTM)')
 plt.ylabel('Loss')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Val.'], loc='upper left')
-plt.savefig('../plots/train_' + 
-            typ + '-' + str(batch_size) + '-' + str(latent_dim) + '-training-loss-' + 
-            data_name +ts + '.png', bbox_inches='tight')
+plt.savefig('../plots/' + 
+            expr + ts + '/loss_train.png', bbox_inches='tight')
 plt.close()
 
 # Print model
 summ = get_model_summary(model)
-myprint(summ, 'encoder_decoder_' + 
-        typ + '-' + str(batch_size) + 
-        '-' + str(latent_dim) + '-' + data_name + ts)
+myprint(summ, expr + ts + '/encoder_decoder_plot')
 
 # Plot model
-ks.utils.plot_model(model, to_file='../plots/encoder_decoder_' +
-                    typ + '-' + str(batch_size) + '-' + str(latent_dim) + 
-                    '-' + data_name + ts + 
-                    '.png', show_shapes=True)
+ks.utils.plot_model(model, to_file='../plots/' +
+                    expr + ts + '/encoder_decoder.png', show_shapes=True)
 print('==> saved training stats')
 
 # Serialize encoder-decoder
-with codecs.open('../dnns/encoder_decoder_' + 
-                 typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                 data_name + ts +'.json', 'w', encoding='utf8') as f:
+with codecs.open('../dnns/' + 
+                 expr + ts + '/encoder_decoder.json', 'w', encoding='utf8') as f:
     f.write(model.to_json())
-model.save_weights('../dnns/encoder_decoder_weights_' +
-                   typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                   data_name + ts + '.h5')
-model.save('../dnns/encoder_decoder_' + 
-           typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-           data_name + ts + '.h5')
+model.save_weights('../dnns/' + 
+                   expr + ts + '/encoder_decoder_weights.h5')
+model.save('../dnns/' + 
+           expr + ts + '/encoder_decoder.h5')
 
 '''
 Project encoder-decoder models from trained architecture and serialiaze
@@ -257,28 +255,21 @@ encoder_model           = Model(encoder_inputs, encoder_states)
 decoder_state_input_h   = Input(shape=(2*latent_dim,))
 
 # Serialize encoder
-with codecs.open('../dnns/encoder_' +
-                 typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                 data_name + ts + '.json', 'w', encoding='utf8') as f:
+with codecs.open('../dnns/' +
+                 expr + ts + '/encoder.json', 'w', encoding='utf8') as f:
     f.write(encoder_model.to_json())
-encoder_model.save_weights('../dnns/encoder_weights_' +
-                           typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                           data_name + ts +'.h5')
-encoder_model.save('../dnns/encoder_' +
-                   typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                   data_name + ts + '.h5')
+encoder_model.save_weights('../dnns/' +
+                           expr + ts + '/encoder_weights.h5')
+encoder_model.save('../dnns/' +
+                   expr + ts + '/encoder.h5')
 
 # Print model
 summ_e = get_model_summary(encoder_model)
-myprint(summ_e, 'encoder_' + 
-        typ + '-' + str(batch_size) + 
-        '-' + str(latent_dim) + '-' + data_name + ts)
+myprint(summ_e, expr + ts + '/encoder_plot')
 
 # Plot model
-ks.utils.plot_model(encoder_model, to_file='../plots/encoder_' +
-                    typ + '-' + str(batch_size) + '-' + str(latent_dim) + 
-                    '-' + data_name + ts + 
-                    '.png', show_shapes=True)
+ks.utils.plot_model(encoder_model, to_file='../plots/' +
+                    expr + ts + '/encoder.png', show_shapes=True)
 print('==> saved encoder model to disk')
 
 # Decoder - note that the latent dimensions *double*.
@@ -290,26 +281,19 @@ decoder_outputs                     = decoder_dense(decoder_outputs)
 decoder_model                       = Model([decoder_inputs] + decoder_states_inputs, [decoder_outputs] + decoder_states)
 
 # Serialize decoder
-with codecs.open('../dnns/decoder_' +
-                 typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                 data_name + ts + '.json', 'w', encoding='utf8') as f:
+with codecs.open('../dnns/' +
+                 expr + ts + '/decoder.json', 'w', encoding='utf8') as f:
     f.write(decoder_model.to_json())
-decoder_model.save_weights('../dnns/decoder_weights_' +
-                           typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                           data_name + ts + '.h5')
-decoder_model.save('../dnns/decoder_' +
-                   typ + '-' + str(batch_size) + '-' + str(latent_dim) +
-                   data_name + ts + '.h5')
+decoder_model.save_weights('../dnns/' +
+                           expr + ts + '/decoder_weights.h5')
+decoder_model.save('../dnns/' +
+                   expr + ts + '/decoder.h5')
 
 # Print model
 summ_d = get_model_summary(decoder_model)
-myprint(summ_d, 'decoder_' + 
-        typ + '-' + str(batch_size) + 
-        '-' + str(latent_dim) + '-' + data_name + ts)
+myprint(summ_d, expr + ts + '/decoder_plot')
 
 # Plot model
-ks.utils.plot_model(decoder_model, to_file='../plots/decoder_' 
-                    + typ + '-' + str(batch_size) + '-' + str(latent_dim) + 
-                    '-' + data_name + ts + 
-                    '.png', show_shapes=True)
+ks.utils.plot_model(decoder_model, to_file='../plots/' +
+                    expr + ts + '/decoder.png', show_shapes=True)
 print('==> saved decoder model to disk')
