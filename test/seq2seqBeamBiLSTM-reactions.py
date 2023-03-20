@@ -99,6 +99,12 @@ for i in range(0,len(test_input)):
         test_dict[test_input[i]].append(test_target[i])
     else:
         test_dict[test_input[i]] = [test_target[i]] 
+        
+# Display test dataset example        
+test_key = list(test_dict.keys())[0]
+print('\nTest set example:')
+print('- source:    %s' %test_key)
+print('- target(s): %s' %test_dict[test_key])
 
 '''
 Restore the model and construct the encoder and decoder.
@@ -198,7 +204,7 @@ df_bleu = pd.DataFrame(columns=['bleu@k',
                         'bleu', 'num_samples', 
                         'beam_size', 'method'])
 df_res  = pd.DataFrame(columns=['source', 
-                        'predicted', 'target'])
+                        'predicted', 'target', 'beam_size'])
 
 print()
 print(df_res)
@@ -241,10 +247,10 @@ def evaluate(N, K, method="corpus-variants", df_bleu=df_bleu, df_res=df_res):
             preds.append(best_decoding)    
             targets.append(tar_sent)
             inputs.append(inp_sent)
-        print('results:     BLEU-4 (macro): %s' %(np.mean(bleus)), '\tbeam size: %s' %K, '\tsamples: %s' %N)
-        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding,
-                        'target':test_dict[inp_sent]},index=[0]),
+            df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding,
+                        'target':str(test_dict[inp_sent]), 'beam_size':K},index=[0]),
                                ignore_index=True)
+        print('results:     BLEU-4 (macro): %s' %(np.mean(bleus)), '\tbeam size: %s' %K, '\tsamples: %s' %N)
         df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':np.mean(bleus), 
                         'num_samples':N, 'beam_size':K, 'method':'sentence'},index=[0]),
                                ignore_index=True)
@@ -264,10 +270,10 @@ def evaluate(N, K, method="corpus-variants", df_bleu=df_bleu, df_res=df_res):
             preds.append(best_decoding)    
             targets.append(test_dict[inp_sent])
             inputs.append(inp_sent)
-        print('results:     BLEU-4: (macro w. variants) %s' %(np.mean(bleus)), '\tbeam size: %s' %K, '\tsamples: %s' %N)
-        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
-                        'target':test_dict[inp_sent]},index=[0]),
+            df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
+                        'target':str(test_dict[inp_sent]),'beam_size':K},index=[0]),
                                ignore_index=True)
+        print('results:     BLEU-4: (macro w. variants) %s' %(np.mean(bleus)), '\tbeam size: %s' %K, '\tsamples: %s' %N)
         df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':np.mean(bleus), 
                         'num_samples':N, 'beam_size':K, 'method':'sentence-variants'},index=[0]),
                                ignore_index=True)
@@ -289,11 +295,11 @@ def evaluate(N, K, method="corpus-variants", df_bleu=df_bleu, df_res=df_res):
             preds.append(best_decoding)    
             targets.append(tar_sent)
             inputs.append(inp_sent)
+            df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
+                        'target':str(test_dict[inp_sent]),'beam_size':K},index=[0]),
+                                ignore_index=True)
         bleu  = corpus_bleu(refs, pred, smoothing_function=smooth)
         print('results:     BLEU-4: (micro) %s' %bleu, '\tbeam size: %s' %K, '\tsamples: %s' %N)
-        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
-                        'target':test_dict[inp_sent]},index=[0]),
-                                ignore_index=True)
         df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':bleus, 
                         'num_samples':N, 'beam_size':K, 'method':'corpus'},index=[0]),
                                  ignore_index=True)
@@ -314,11 +320,11 @@ def evaluate(N, K, method="corpus-variants", df_bleu=df_bleu, df_res=df_res):
             preds.append(best_decoding)    
             targets.append(test_dict[inp_sent])
             inputs.append(inp_sent)
+            df_res = pd.concat([df_res, pd.DataFrame( {'source': inp_sent, 'predicted':best_decoding, 
+                        'target':str(test_dict[inp_sent]),'beam_size':K}, index=[0])],
+                                ignore_index=True)
         bleu  = corpus_bleu(refs, pred, smoothing_function=smooth)
         print('results:     BLEU-4: (macro w. variants) %s' %bleu, '\tbeam size: %s' %K, '\tsamples: %s' %N)
-        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
-                        'target':test_dict[inp_sent]},index=[0]),
-                                ignore_index=True)
         df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':bleu, 
                         'num_samples':N, 'beam_size':K, 'method':'corpus-variants'},index=[0]),
                                 ignore_index=True)
@@ -354,13 +360,16 @@ df_res              = df_res.append(df_res_x, ignore_index=True)
 
 # display results
 print(df_res.head())
+print(df_res.shape)
 print()
 print(df_bleu.head())
+print(df_bleu.shape)
 print()
 
 '''
 Save results
 '''
+
 
 df_bleu.to_csv('../dnns/' + eval_path + '/test_bleus.csv', sep='\t', index=False)
 df_res.to_csv('../dnns/' + eval_path + '/test_preds.csv', sep='\t', index=False)
