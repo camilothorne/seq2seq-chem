@@ -17,38 +17,43 @@ from __future__ import print_function
 import sys
 sys.path.insert(0,'../../seq2seq-chem')
 
-from utils.onehotencode import OneHotEncode
+from utils.onehotencode import OneHotEncode, ExpConfig
 from utils.beamsearch import State, BeamSearch
 
 import warnings
 warnings.filterwarnings('ignore')  # ignore all warnings
-#warnings.filterwarnings('ignore', category=DeprecationWarning)
-
-# assign timestamp to results
-import datetime as dt
-ts = dt.datetime.now().strftime("-%m:%d:%Y::%H:%M:%S")
 
 import numpy as np
+import pandas as pd
 from keras.models import model_from_json
-import tensorflow as tf, os
+import tensorflow as tf
+import os, sys
 from collections import OrderedDict
 from nltk.translate.bleu_score import corpus_bleu, SmoothingFunction, sentence_bleu
 
-# mute warnings
+# mute TF warnings
 tf.logging.set_verbosity(tf.logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-latent_dim  = 128      # Latent dimensionality of the encoding space.
-num_samples = 1000     # Number of samples to test on.
-
 '''
-Create character table(s)
+Get experiment path from CLI
 '''
 
-data_path   = '../data/testing-s2s-uspto-50k.tsv.tsv'     # Path to the data txt file on disk.
+# get model / experiment name and dataset name from CLI
+eval_path = sys.argv[-1]
+data_name = eval_path.split('_')[1]
+
+# display experiment/model trained
+print('\nModel: ' + eval_path)
+
+'''
+Retrieve corpus and one-hot encodings:
+'''
+
 data_encoding = OneHotEncode()
-data_encoding.build_char_table(data_path, xrows=['reactants','product'])
+data_encoding.from_pickle('../data/' + data_name + '.pk')
 data_encoding.corpus_stats()
+df = data_encoding.corpus
 
 input_characters          = data_encoding.input_characters
 target_characters         = data_encoding.target_characters
@@ -59,20 +64,27 @@ num_decoder_tokens        = data_encoding.num_decoder_tokens
 max_encoder_seq_length    = data_encoding.max_encoder_seq_length
 max_decoder_seq_length    = data_encoding.max_decoder_seq_length
 
+# hyperparameters
+train_samples = len(df[df.split=='train'])             # number of samples to test on
+num_samples   =  len(df) - len(df[df.split=='train'])  # number of samples to test on
+
+# get the test partition
 (encoder_input_data, 
     decoder_input_data, 
     decoder_target_data, 
-    corpus) = data_encoding.select_sample(num_samples, 2*num_samples, print_stats=True)
+    corpus) = data_encoding.select_sample(train_samples, 
+                                          train_samples+num_samples, 
+                                          print_stats=True)
 
 '''
-build test corpus
+Build test corpus
 '''
 
 test_input          = []
 test_target         = []
 for i in range(0, corpus.shape[0]):
     test_input.append(corpus[i,0])
-    test_target.append(corpus[i,1])  
+    test_target.append(corpus[i,1]) 
 
 '''
 Create alternatives for BLEU-4
@@ -103,10 +115,10 @@ def my_load_model(model_filename, model_weights_filename):
     return model
 
 # load models
-decoder_model = my_load_model('../dnns/decoder_bilstm-100-128-uspto-50k-02:27:2023::14:47:03.json', 
-                              '../dnns/decoder_bilstm_weights-100-128-uspto-50k-02:27:2023::14:47:03.h5')
-encoder_model = my_load_model('../dnns/encoder_bilstm-100-128-uspto-50k-02:27:2023::14:47:03.json', 
-                              '../dnns/encoder_bilstm_weights-100-128-uspto-50k-02:27:2023::14:47:03.h5')
+decoder_model = my_load_model('../dnns/' + eval_path + '/decoder.json', 
+                              '../dnns/' + eval_path + '/decoder_weights.h5')
+encoder_model = my_load_model('../dnns/' + eval_path + '/encoder.json', 
+                              '../dnns/' + eval_path + '/encoder_weights.h5')
 
 # visualize models
 print("\nENCODER:")
@@ -132,7 +144,7 @@ Beam-search decoding, where
 a beam size K=1 reverts to best-first decoding.
 '''
 
-# Decodes an input sequence using "beam search".
+# decodes an input sequence using "beam search".
 def decode_sequence_beam(xinput_seq, max_len, k):
     '''
     decodes seq2seq prediction using beam search
@@ -179,15 +191,32 @@ def decode_sequence_beam(xinput_seq, max_len, k):
     return res
 
 '''
+We create structures to save the results in disk
+'''
+
+df_bleu = pd.DataFrame(columns=['bleu@k', 
+                        'bleu', 'num_samples', 
+                        'beam_size', 'method'])
+df_res  = pd.DataFrame(columns=['source', 
+                        'predicted', 'target'])
+
+print()
+print(df_res)
+print()
+print(df_bleu)
+
+'''
 We evaluate predictions on N samples on a beam of size K
 using BLEU-4 in different variations
 '''
-       
-def evaluate(N, K, method="corpus-variants"):
+
+def evaluate(N, K, method="corpus-variants", df_bleu=df_bleu, df_res=df_res):
     '''
     Measure BLEU sentence by sentence, and then return average
     For each prediction in the beam, pick the highest
     '''
+    print()
+    # we use BLEU
     chc  = SmoothingFunction()
     smooth = chc.method2 # Laplace (+1) smoothing for proportion estimators
     #
@@ -213,6 +242,12 @@ def evaluate(N, K, method="corpus-variants"):
             targets.append(tar_sent)
             inputs.append(inp_sent)
         print('results:     BLEU-4 (macro): %s' %(np.mean(bleus)), '\tbeam size: %s' %K, '\tsamples: %s' %N)
+        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding,
+                        'target':test_dict[inp_sent]},index=[0]),
+                               ignore_index=True)
+        df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':np.mean(bleus), 
+                        'num_samples':N, 'beam_size':K, 'method':'sentence'},index=[0]),
+                               ignore_index=True)
     #        
     elif method == "sentence-variants":   
         bleus = []
@@ -230,6 +265,12 @@ def evaluate(N, K, method="corpus-variants"):
             targets.append(test_dict[inp_sent])
             inputs.append(inp_sent)
         print('results:     BLEU-4: (macro w. variants) %s' %(np.mean(bleus)), '\tbeam size: %s' %K, '\tsamples: %s' %N)
+        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
+                        'target':test_dict[inp_sent]},index=[0]),
+                               ignore_index=True)
+        df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':np.mean(bleus), 
+                        'num_samples':N, 'beam_size':K, 'method':'sentence-variants'},index=[0]),
+                               ignore_index=True)
     #
     elif method == "corpus":   
         refs = []
@@ -250,6 +291,12 @@ def evaluate(N, K, method="corpus-variants"):
             inputs.append(inp_sent)
         bleu  = corpus_bleu(refs, pred, smoothing_function=smooth)
         print('results:     BLEU-4: (micro) %s' %bleu, '\tbeam size: %s' %K, '\tsamples: %s' %N)
+        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
+                        'target':test_dict[inp_sent]},index=[0]),
+                                ignore_index=True)
+        df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':bleus, 
+                        'num_samples':N, 'beam_size':K, 'method':'corpus'},index=[0]),
+                                 ignore_index=True)
     #
     elif method == "corpus-variants":   
         refs = []
@@ -269,6 +316,12 @@ def evaluate(N, K, method="corpus-variants"):
             inputs.append(inp_sent)
         bleu  = corpus_bleu(refs, pred, smoothing_function=smooth)
         print('results:     BLEU-4: (macro w. variants) %s' %bleu, '\tbeam size: %s' %K, '\tsamples: %s' %N)
+        df_res = df_res.append(pd.DataFrame({'source': inp_sent, 'predicted':best_decoding, 
+                        'target':test_dict[inp_sent]},index=[0]),
+                                ignore_index=True)
+        df_bleu = df_bleu.append(pd.DataFrame({'bleu@k':'bleu@'+str(K), 'bleu':bleu, 
+                        'num_samples':N, 'beam_size':K, 'method':'corpus-variants'},index=[0]),
+                                ignore_index=True)
     #
     else:
         pass
@@ -277,57 +330,41 @@ def evaluate(N, K, method="corpus-variants"):
     print('predicted:   %s' %preds[0:min(10,N)])
     print('target:      %s' %targets[0:min(10,N)])
     print()
+    return df_res, df_bleu
 
 '''
-Evaluation
+Evaluation and inference w. beam size =< 5
 '''
       
-evaluate(500,1)
-evaluate(500,2)
-evaluate(500,3)
-evaluate(500,4)
-evaluate(500,5)
+df_res_x, df_bleu_x = evaluate(num_samples,1)
+df_bleu             = df_bleu.append(df_bleu_x, ignore_index=True)
+df_res              = df_res.append(df_res_x, ignore_index=True)
+df_res_x, df_bleu_x = evaluate(num_samples,2)
+df_bleu             = df_bleu.append(df_bleu_x, ignore_index=True)
+df_res              = df_res.append(df_res_x, ignore_index=True)
+df_res_x, df_bleu_x = evaluate(num_samples,3)
+df_bleu             = df_bleu.append(df_bleu_x, ignore_index=True)
+df_res              = df_res.append(df_res_x, ignore_index=True)
+df_res_x, df_bleu_x = evaluate(num_samples,4)
+df_bleu             = df_bleu.append(df_bleu_x, ignore_index=True)
+df_res              = df_res.append(df_res_x, ignore_index=True)
+df_res_x, df_bleu_x = evaluate(num_samples,5)
+df_bleu             = df_bleu.append(df_bleu_x, ignore_index=True)
+df_res              = df_res.append(df_res_x, ignore_index=True)
 
-# evaluate(20,1,method="corpus")
-# evaluate(20,2,method="corpus")
-# evaluate(20,3,method="corpus")
-# evaluate(20,4,method="corpus")
-# evaluate(20,5,method="corpus")
-# evaluate(20,6,method="corpus")
-# evaluate(20,7,method="corpus")
-# evaluate(20,8,method="corpus")
-# evaluate(20,9,method="corpus")
-# evaluate(20,10,method="corpus") 
+# display results
+print(df_res.head())
+print()
+print(df_bleu.head())
+print()
 
-# evaluate(20,1,method="sentence")
-# evaluate(20,2,method="sentence")
-# evaluate(20,3,method="sentence")
-# evaluate(20,4,method="sentence")
-# evaluate(20,5,method="sentence")
-# evaluate(20,6,method="sentence")
-# evaluate(20,7,method="sentence")
-# evaluate(20,8,method="sentence")
-# evaluate(20,9,method="sentence")
-# evaluate(20,10,method="sentence")  
-      
-# evaluate(200,1,method="corpus-variants")
-# evaluate(200,2,method="corpus-variants")
-# evaluate(200,3,method="corpus-variants")
-# evaluate(200,4,method="corpus-variants")
-# evaluate(200,5,method="corpus-variants")
-# evaluate(200,6,method="corpus-variants")
-# evaluate(200,7,method="corpus-variants")
-# evaluate(200,8,method="corpus-variants")
-# evaluate(200,9,method="corpus-variants")
-# evaluate(200,10,method="corpus-variants")
+'''
+Save results
+'''
 
-# evaluate(20,1,method="sentence-variants")
-# evaluate(20,2,method="sentence-variants")
-# evaluate(20,3,method="sentence-variants")
-# evaluate(20,4,method="sentence-variants")
-# evaluate(20,5,method="sentence-variants")
-# evaluate(20,6,method="sentence-variants")
-# evaluate(20,7,method="sentence-variants")
-# evaluate(20,8,method="sentence-variants")
-# evaluate(20,9,method="sentence-variants")
-# evaluate(20,10,method="sentence-variants")
+df_bleu.to_csv('../dnns/' + eval_path + '/test_bleus.csv', sep='\t', index=False)
+df_res.to_csv('../dnns/' + eval_path + '/test_preds.csv', sep='\t', index=False)
+
+print('Saving results:')
+print('- bleus:', '../dnns/' + eval_path + '/test_bleus.csv')
+print('- predictions:', '../dnns/' + eval_path + '/test_preds.csv')
