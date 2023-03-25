@@ -61,8 +61,14 @@ from utils.onehotencode import OneHotEncode, ExpConfig
 Hyperparameters (1)
 '''
 
+# get model / experiment name and dataset name from CLI
+eval_path = sys.argv[-1]
+
+# display experiment/model trained
+print('\nModel: ' + eval_path)
+
 # Get experimental parameters
-my_exp = ExpConfig('bilstm','./config_bilstm_uspto50-sample.json')
+my_exp = ExpConfig('../dnns/' + eval_path + '.json')
 my_exp.print_config()
 
 batch_size  = my_exp.batch_size     # Batch size for training
@@ -70,8 +76,8 @@ epochs      = my_exp.epochs         # Number of epochs to train for
 latent_dim  = my_exp.latent_dim     # Latent dimensionality of the encoding space
 data_name   = my_exp.data_name      # Dataset name
 typ         = my_exp.typ            # Type
-expr        = typ + '-' + str(batch_size) + '-' + str(epochs) + '-' + str(latent_dim) + '-' + data_name # Path
-ts          = dt.datetime.now().strftime("-%m:%d:%Y::%H:%M:%S") # Timestamp
+expr        = typ + '-' + str(batch_size) + '-' + str(epochs) + '-' + str(latent_dim) + '_' + data_name + '_' # Path
+ts          = dt.datetime.now().strftime("%m:%d:%Y::%H:%M:%S") # Timestamp
 
 '''
 Create plotting, logging and model directories        

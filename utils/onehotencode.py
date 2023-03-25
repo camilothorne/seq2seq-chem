@@ -4,14 +4,59 @@ Created on 5 Jun 2022
 
 Corpus preprocessor to build character one-hot encodings for each
 data point.
-
 '''
 
 
 import numpy as np
 import pandas as pd
 import pickle as pk
+import json
 
+
+class ExpConfig(object):
+    '''
+    Generic reader of JSON config files
+    and expects a file of the form:
+    {
+      'key1' : value1,
+           ...
+      'keyN' : valueN
+    }
+    '''
+    
+    def __init__(self, path):
+        '''
+        Init experiment hyperparameters
+        '''
+        self.data_name   = None      # Dataset name
+        self.batch_size  = None      # Batch size for training
+        self.epochs      = None      # Number of epochs to train for
+        self.typ         = None      # Type of model
+        self.latent_dim  = None      # Latent dimensionality of the encoding space
+        self._read_config(path) # Read config
+        
+    def _read_config(self, path):
+        '''
+        Read JSON configuration, and set values
+        '''
+        with open(path) as handle:
+            dict_config = json.loads(handle.read())
+        self.data_name   = dict_config['data_name']
+        self.batch_size  = dict_config['batch_size']
+        self.epochs      = dict_config['epochs']
+        self.typ         = dict_config['typ'] 
+        self.latent_dim  = dict_config['latent_dim']
+        
+    def print_config(self):
+        '''
+        Print values
+        '''
+        print("\nHyperparameters")
+        print("- dataset:     %s\n" %self.data_name +  
+              "- batch size:  %s\n" %self.batch_size + 
+              "- epochs:      %s\n" %self.epochs +
+              "- type:        %s\n" %self.typ +
+              "- latent dims: %s"   %self.latent_dim)
 
 class OneHotEncode(object):
     '''
