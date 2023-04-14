@@ -110,7 +110,8 @@ Create character table(s) and one-hot encodings for whole dataset (train + test)
 # Path to the data file on disk
 data_path  = '../data/' + data_name + '.tsv' 
 data_encoding = OneHotEncode()                                           # Char table + one-hot vectors (full corpus)
-data_encoding.build_char_table(data_path, xrows=['reactants','product']) # We want to generate products from reactants
+#data_encoding.build_char_table(data_path, xrows=['reactants','product']) # We want to generate products from reactants
+data_encoding.build_char_table(data_path, xrows=['product','reactants']) # We want to generate reactants from products
 data_encoding.corpus_stats()
 data_encoding.to_pickle('../data/' + data_name + '.pk') 
 
