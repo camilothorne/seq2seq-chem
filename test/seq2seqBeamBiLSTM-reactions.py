@@ -51,7 +51,7 @@ Retrieve corpus and one-hot encodings:
 '''
 
 data_encoding = OneHotEncode()
-data_encoding.from_pickle('../data/' + data_name + '.pk')
+data_encoding.from_pickle('../dnns/' + eval_path + '/' + data_name + '.pk')
 data_encoding.corpus_stats()
 df = data_encoding.corpus
 

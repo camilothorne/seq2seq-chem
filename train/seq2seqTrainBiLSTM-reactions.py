@@ -113,7 +113,8 @@ data_encoding = OneHotEncode()                                           # Char 
 #data_encoding.build_char_table(data_path, xrows=['reactants','product']) # We want to generate products from reactants
 data_encoding.build_char_table(data_path, xrows=['product','reactants']) # We want to generate reactants from products
 data_encoding.corpus_stats()
-data_encoding.to_pickle('../data/' + data_name + '.pk') 
+data_encoding.to_pickle('../dnns/' + 
+                        expr + ts + + data_name + '.pk') 
 
 '''
 Hyperparameters (2)
