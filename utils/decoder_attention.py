@@ -1,7 +1,11 @@
 import tensorflow as tf
+import os
 from keras import backend as K
 from keras import regularizers, constraints, initializers, activations
 from keras.layers.recurrent import Recurrent, _time_distributed_dense
+
+from keras.layers import Dense, Lambda, Dot, Activation, Concatenate, Layer, RepeatVector, Add
+
 from keras.engine import InputSpec
 
 tfPrint = lambda d, T: tf.Print(input_=T, data=[T, tf.shape(T)], message=d)
