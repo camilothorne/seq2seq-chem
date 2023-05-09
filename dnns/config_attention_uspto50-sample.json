@@ -2,6 +2,6 @@
 	"epochs": 10,
 	"latent_dim": 128,
 	"batch_size": 32,
-	"typ": "bilstm",
+	"typ": "attention",
 	"data_name": "uspto-50k-sample"
 }

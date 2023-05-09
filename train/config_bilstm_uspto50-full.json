@@ -1,7 +1,0 @@
-{
-	"epochs": 100,
-	"latent_dim": 128,
-	"batch_size": 32,
-	"typ": "bilstm",
-	"data_name": "uspto-50k-full"
-}
