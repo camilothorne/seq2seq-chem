@@ -84,7 +84,7 @@ class OneHotEncode(object):
         self.corpus                 = None
     
 
-    def build_char_table(self, data_path, xrows):
+    def build_char_table(self, data_path, xrows, norm_len=False):
         '''
         Read (full) dataset, and:
         
@@ -110,11 +110,11 @@ class OneHotEncode(object):
             for char in target_text:
                 if char not in self.target_characters:
                     self.target_characters.add(char)
-        self._set_input_chars()
+        self._set_input_chars(norm_len)
         self._build_embeddings()
         
                     
-    def _set_input_chars(self):
+    def _set_input_chars(self, norm_len):
         '''
         Set internal variables (private method)
     
@@ -123,6 +123,8 @@ class OneHotEncode(object):
         - max length of inputs anf targets
         - input token indexes (char dictionary of positions to chars)
         - target token indexes (char dictionary of positions to chars)
+        - if norm_len==True, all sequences are defined to
+        be of the same length
         '''
         self.input_characters = sorted(list(self.input_characters))
         self.target_characters = sorted(list(self.target_characters))
@@ -130,6 +132,10 @@ class OneHotEncode(object):
         self.num_decoder_tokens = len(self.target_characters)
         self.max_encoder_seq_length = max([len(txt) for txt in self.input_texts])
         self.max_decoder_seq_length = max([len(txt) for txt in self.target_texts])
+        if norm_len:
+            seq_len = max([self.max_encoder_seq_length, self.max_decoder_seq_length])
+            self.max_encoder_seq_length = seq_len
+            self.max_encoder_seq_length = seq_len
         # We need dictionaries to decode predictions. The `argmax(...)` function
         # applied to a softmax layer returns the position in the output M-dimensional probability 
         # distribution vector with the highest softmax value.

@@ -1,13 +1,12 @@
 '''
 Created on 14 Nov 2018
-@author: thorne1
+@author: Camilo Thorne
 '''
 
-
 import os
+import json
 import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard
-
 
 class TrainValTensorBoard(TensorBoard):
     '''
